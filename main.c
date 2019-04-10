@@ -59,7 +59,7 @@
 #include "driverlib/pin_map.h"
 #include "inc/hw_memmap.h"
 
-#define APPLICATION_VERSION "1.3.0"
+#define APPLICATION_VERSION "1.2.0"
 
 #define SL_STOP_TIMEOUT        0xFF
 
@@ -69,12 +69,13 @@
  */
 #define IP_HR "10.107.2.120"
 #define IP_ADDR         0x0a6B0278
-#define PORT_NUM        50001              /* Port number to be used */
+#define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
 #define NO_OF_PACKETS   10
 
-#define SAMPLE_SIZE 1023
+#define NO_OF_SAMPLES 256
+#define PACKET_SIZE NO_OF_SAMPLES*2
 
 /* Application specific status/error codes */
 typedef enum{
@@ -95,7 +96,7 @@ union
     _u32 demobuf[BUF_SIZE/4];
 } uBuf;
 
-_u16 adcBuf[SAMPLE_SIZE];
+_u8  adcBuf[PACKET_SIZE];
 /*
  * GLOBAL VARIABLES -- End
  */
@@ -396,21 +397,24 @@ CLI_Write("ADC_initialised\n");
 
     CLI_Write(" Connection established w/ AP and IP is acquired \n\r");
 
-    CLI_Write(" Started sending data to UDP server \n\r");
+//    CLI_Write(" Started sending data to UDP server \n\r");
 
-    retVal = BsdUdpClient(PORT_NUM);
-    if(retVal < 0)
-        CLI_Write(" Failed to send data to UDP sevrer\n\r");
-    else
-        CLI_Write(" successfully sent data to UDP server \n\r");
-    for(i =0; i <1024; i++){
+//    retVal = BsdUdpClient(PORT_NUM);
+//    if(retVal < 0)
+//        CLI_Write(" Failed to send data to UDP sevrer\n\r");
+//    else
+//        CLI_Write(" successfully sent data to UDP server \n\r");
+    for(i =0; i < NO_OF_SAMPLES; i++){
         ADCIntClear(ADC0_BASE, 1);
                  ADCProcessorTrigger(ADC0_BASE, 0);
                  while(!ADCIntStatus(ADC0_BASE, 0, false))
                  {
                  }
                  ADCSequenceDataGet(ADC0_BASE, 0, &ADCvalue);
-                 adcBuf[i] = (_u16)ADCvalue;
+                 adcBuf[i] = (_u8)(ADCvalue & 0xFF);
+                 i++;
+                 adcBuf[i] = (_u8)((ADCvalue >>8) & 0x3F);
+
     }
 CLI_Write("pushing _ADC Data \n");
 retVal = ADC_Push(PORT_NUM);
@@ -420,11 +424,11 @@ retVal = ADC_Push(PORT_NUM);
         CLI_Write("pushing ADC data succesful \n\r");
 //    CLI_Write(" Waiting for data from UDP client \n\r");
 //
-//    retVal = BsdUdpServer(PORT_NUM);
-//    if(retVal < 0)
-//        CLI_Write(" Failed to read data from the UDP client \n\r");
-//    else
-//        CLI_Write(" Successfully received data from UDP client \n\r");
+    retVal = BsdUdpServer(PORT_NUM);
+    if(retVal < 0)
+        CLI_Write(" Failed to read data from the UDP client \n\r");
+    else
+        CLI_Write(" Successfully received data from UDP client \n\r");
 
     /* Stop the CC3100 device */
     retVal = sl_Stop(SL_STOP_TIMEOUT);
@@ -668,13 +672,13 @@ static _i32 BsdUdpClient(_u16 Port)
 static _i32 ADC_Push(_u16 Port)
 {
     SlSockAddrIn_t  Addr;
-    _u16            idx = 0;
     _u16            AddrSize = 0;
     _i16            SockID = 0;
     _i16            Status = 0;
     _u32            LoopCount = 0;
 
-
+_u8 tststr[2048];
+memcpy(tststr, "this is my kingdom come\n",23);
 
     Addr.sin_family = SL_AF_INET;
     Addr.sin_port = sl_Htons((_u16)Port);
@@ -688,15 +692,17 @@ static _i32 ADC_Push(_u16 Port)
         ASSERT_ON_ERROR(SockID);
     }
 
-    while (LoopCount < SAMPLE_SIZE)
+    while (LoopCount < NO_OF_PACKETS)
     {
 
 
 
 
 
-        Status = sl_SendTo(SockID, adcBuf, SAMPLE_SIZE, 0,
+        Status = sl_SendTo(SockID, tststr, PACKET_SIZE, 0,
                                (SlSockAddr_t *)&Addr, AddrSize);
+        Status = sl_SendTo(SockID, adcBuf, PACKET_SIZE, 0,
+                                       (SlSockAddr_t *)&Addr, AddrSize);
         if( Status <= 0 )
         {
             Status = sl_Close(SockID);

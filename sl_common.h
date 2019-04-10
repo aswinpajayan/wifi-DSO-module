@@ -77,7 +77,7 @@ extern "C" {
  */
 #define SSID_NAME       "aswin-HP"         /* Access point name to connect to. */
 #define SEC_TYPE        SL_SEC_TYPE_WPA    /* Security type of the Access piont */
-#define PASSKEY         "c5J9UCSH"                  /* Password in case of secure AP */
+#define PASSKEY         "yourpassword"                  /* Password in case of secure AP */
 #define PASSKEY_LEN     pal_Strlen(PASSKEY)  /* Password length in case of secure AP */
 
 /* Configuration of the device when it comes up in AP mode */

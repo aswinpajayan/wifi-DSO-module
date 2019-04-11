@@ -345,9 +345,9 @@ int main(int argc, char** argv)
 
 
             SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-           ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
-           ADCSequenceStepConfigure(ADC0_BASE, 0, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_TS);
-           ADCSequenceEnable(ADC0_BASE, 0);
+           ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0); //changed sequencer to 3
+           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+           ADCSequenceEnable(ADC0_BASE, 3);
 
 
 CLI_Write("ADC_initialised\n");
@@ -407,11 +407,11 @@ CLI_Write("ADC_initialised\n");
 //        CLI_Write(" successfully sent data to UDP server \n\r");
     for(i =0; i < NO_OF_SAMPLES; i++){
         ADCIntClear(ADC0_BASE, 1);
-                 ADCProcessorTrigger(ADC0_BASE, 0);
-                 while(!ADCIntStatus(ADC0_BASE, 0, false))
+                 ADCProcessorTrigger(ADC0_BASE, 3);
+                 while(!ADCIntStatus(ADC0_BASE, 3, false))
                  {
                  }
-                 ADCSequenceDataGet(ADC0_BASE, 0, &ADCvalue);
+                 ADCSequenceDataGet(ADC0_BASE, 3, &ADCvalue);
                  adcBuf[i] = ADCvalue & 0xFF;
                  i++;
                  adcBuf[i] = ADCvalue >>8 & 0x0F;

@@ -73,7 +73,7 @@
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
-#define NO_OF_PACKETS   10
+#define NO_OF_PACKETS   2
 
 #define NO_OF_SAMPLES 256
 #define PACKET_SIZE 512
@@ -98,6 +98,7 @@ union
 } uBuf;
 
 _u8  adcBuf[PACKET_SIZE];
+_u32 ADCoutput[NO_OF_SAMPLES];
 /*
  * GLOBAL VARIABLES -- End
  */
@@ -349,7 +350,7 @@ int main(int argc, char** argv)
             {
             }
            ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0); //changed sequencer to 3
-           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_TS);
+           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
            ADCSequenceEnable(ADC0_BASE, 3);
 
 
@@ -410,16 +411,16 @@ CLI_Write("ADC_initialised\n");
 //        CLI_Write(" successfully sent data to UDP server \n\r");
 
     for(i =0; i < PACKET_SIZE; i++){
-        ADCIntClear(ADC0_BASE, 1);
+        ADCIntClear(ADC0_BASE, 3);
                  ADCProcessorTrigger(ADC0_BASE, 3);
                  while(!ADCIntStatus(ADC0_BASE, 3, false))
                  {
                  }
-                 adcBuf[i] = (ADCvalue) & 0x00FF;
                  ADCSequenceDataGet(ADC0_BASE, 3, &ADCvalue);
                  adcBuf[i] = ADCvalue & 0xFF;
                  i++;
                  adcBuf[i] = (ADCvalue >>8 )& 0x000F;
+                 ADCoutput[i/2]= ADCvalue;
 
     }
 CLI_Write("pushing _ADC Data \n");

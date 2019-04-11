@@ -66,9 +66,10 @@
 /* IP addressed of server side socket.
  * Should be in long format, E.g: 0xc0a8010a == 192.168.1.10
  * 0x0a6B0278 == 10.107.2.120
+ * 0x0A6B4FAF == 10.107.79.175  -- this is my laps ip in wel
  */
 #define IP_HR "10.107.2.120"
-#define IP_ADDR         0x0a6B0278
+#define IP_ADDR         0x0A6B4FAF      //laptops ip . 
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
@@ -411,9 +412,9 @@ CLI_Write("ADC_initialised\n");
                  {
                  }
                  ADCSequenceDataGet(ADC0_BASE, 0, &ADCvalue);
-                 adcBuf[i] = (_u8)(ADCvalue & 0xFF);
+                 adcBuf[i] = ADCvalue & 0xFF;
                  i++;
-                 adcBuf[i] = (_u8)((ADCvalue >>8) & 0x3F);
+                 adcBuf[i] = ADCvalue >>8 & 0x0F;
 
     }
 CLI_Write("pushing _ADC Data \n");

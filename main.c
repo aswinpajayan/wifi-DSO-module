@@ -69,7 +69,7 @@
  * 0x0A6B4FAF == 10.107.79.175  -- this is my laps ip in wel
  */
 #define IP_HR "10.107.2.120"
-#define IP_ADDR         0x0A6B4FAF      //laptops ip . 
+#define IP_ADDR         0x0A6B4FC2      //laptops ip .
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
@@ -350,7 +350,7 @@ int main(int argc, char** argv)
             {
             }
            ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0); //changed sequencer to 3
-           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH4);
            ADCSequenceEnable(ADC0_BASE, 3);
 
 

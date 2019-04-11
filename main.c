@@ -412,9 +412,9 @@ CLI_Write("ADC_initialised\n");
                  {
                  }
                  ADCSequenceDataGet(ADC0_BASE, 0, &ADCvalue);
-                 adcBuf[i] = ADCvalue & 0xFF;
+                 adcBuf[i] = (ADCvalue) & 0x00FF;
                  i++;
-                 adcBuf[i] = ADCvalue >>8 & 0x0F;
+                 adcBuf[i] = (ADCvalue >>8 )& 0x000F;
 
     }
 CLI_Write("pushing _ADC Data \n");

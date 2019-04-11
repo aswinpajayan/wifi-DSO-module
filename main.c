@@ -76,7 +76,7 @@
 #define NO_OF_PACKETS   10
 
 #define NO_OF_SAMPLES 256
-#define PACKET_SIZE NO_OF_SAMPLES*2
+#define PACKET_SIZE 512
 
 /* Application specific status/error codes */
 typedef enum{
@@ -345,8 +345,11 @@ int main(int argc, char** argv)
 
 
             SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+            while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0))
+            {
+            }
            ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0); //changed sequencer to 3
-           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_TS);
            ADCSequenceEnable(ADC0_BASE, 3);
 
 
@@ -405,7 +408,8 @@ CLI_Write("ADC_initialised\n");
 //        CLI_Write(" Failed to send data to UDP sevrer\n\r");
 //    else
 //        CLI_Write(" successfully sent data to UDP server \n\r");
-    for(i =0; i < NO_OF_SAMPLES; i++){
+
+    for(i =0; i < PACKET_SIZE; i++){
         ADCIntClear(ADC0_BASE, 1);
                  ADCProcessorTrigger(ADC0_BASE, 3);
                  while(!ADCIntStatus(ADC0_BASE, 3, false))

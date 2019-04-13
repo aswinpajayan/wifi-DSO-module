@@ -44,7 +44,7 @@
 
 
 //use stty -F /dev/ttyACM0 115200 -cstopb and cat /dev/ttyACM0 to view cli_uart s
-
+#include <stdint.h>
 #include "simplelink.h"
 #include "sl_common.h"
 #include "driverlib/adc.h"
@@ -54,6 +54,10 @@
 #include "driverlib/gpio.h"
 #include "driverlib/sysctl.h"
 #include <stdio.h>
+#include "driverlib/timer.h"
+#include "driverlib/interrupt.h"
+#include "inc/tm4c123gh6pm.h"
+
 
 #include <stdbool.h>
 #include "driverlib/pin_map.h"
@@ -68,15 +72,17 @@
  * 0x0a6B0278 == 10.107.2.120
  * 0x0A6B4FAF == 10.107.79.175  -- this is my laps ip in wel
  */
-#define IP_HR "10.107.2.120"
-#define IP_ADDR         0x0A6B4FC2      //laptops ip .
+#define IP_HR "10.1.96.112"
+#define IP_ADDR         0x0A016070      //laptops ip .
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
-#define NO_OF_PACKETS   2
+#define NO_OF_PACKETS   20
 
 #define NO_OF_SAMPLES 256
 #define PACKET_SIZE 512
+
+#define SAMPLING_FREQ 800000 //800 khz
 
 /* Application specific status/error codes */
 typedef enum{
@@ -99,6 +105,8 @@ union
 
 _u8  adcBuf[PACKET_SIZE];
 _u32 ADCoutput[NO_OF_SAMPLES];
+_u16 sample_number =0;
+uint32_t ADCvalue;
 /*
  * GLOBAL VARIABLES -- End
  */
@@ -113,6 +121,7 @@ static _i32 BsdUdpServer(_u16 Port);
 static _i32 BsdUdpClient(_u16 Port);
 static _i32 ADC_Push(_u16 Port);
 static void displayBanner();
+static void systemSetup(void);
 /*
  * STATIC FUNCTION DEFINITIONS -- End
  */
@@ -323,9 +332,11 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 int main(int argc, char** argv)
 {
     _i32 retVal = -1;
-    uint32_t ADCvalue;
+
     int i;
 
+   // systemSetup();
+       //while(sample_number<PACKET_SIZE);
 
     retVal = initializeAppVariables();
     ASSERT_ON_ERROR(retVal);
@@ -336,25 +347,16 @@ int main(int argc, char** argv)
     initClk();
 
     /* Configure command line interface */
+
     CLI_Configure();
 
     displayBanner();
-
-    /*-----------ADC initialisation --------------------------------*
-         *
-         */
-
-
-            SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-            while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0))
-            {
-            }
-           ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0); //changed sequencer to 3
-           ADCSequenceStepConfigure(ADC0_BASE, 3, 0,ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH4);
-           ADCSequenceEnable(ADC0_BASE, 3);
+    CLI_Write("ADC_initialised\n");
+    CLI_Write("starting ADC interrupt trigger");
+    
+initClk();
 
 
-CLI_Write("ADC_initialised\n");
     /*
      * Following function configures the device to default state by cleaning
      * the persistent settings stored in NVMEM (viz. connection profiles &
@@ -409,22 +411,13 @@ CLI_Write("ADC_initialised\n");
 //        CLI_Write(" Failed to send data to UDP sevrer\n\r");
 //    else
 //        CLI_Write(" successfully sent data to UDP server \n\r");
+    CLI_Write("starting ADC interrupt trigger");
+    //systemSetup();
+    CLI_Write("ADC_initialised\n");
 
-    for(i =0; i < PACKET_SIZE; i++){
-        ADCIntClear(ADC0_BASE, 3);
-                 ADCProcessorTrigger(ADC0_BASE, 3);
-                 while(!ADCIntStatus(ADC0_BASE, 3, false))
-                 {
-                 }
-                 ADCSequenceDataGet(ADC0_BASE, 3, &ADCvalue);
-                 adcBuf[i] = ADCvalue & 0xFF;
-                 i++;
-                 adcBuf[i] = (ADCvalue >>8 )& 0x000F;
-                 ADCoutput[i/2]= ADCvalue;
 
-    }
-CLI_Write("pushing _ADC Data \n");
-retVal = ADC_Push(PORT_NUM);
+   CLI_Write("pushing _ADC Data \n");
+   retVal = ADC_Push(PORT_NUM);
     if(retVal < 0)
         CLI_Write(" Failed to push ADC data to UDP sevrer\n\r");
     else
@@ -678,6 +671,7 @@ static _i32 BsdUdpClient(_u16 Port)
 
 static _i32 ADC_Push(_u16 Port)
 {
+    CLI_Write("entered ADCPUSH\n");
     SlSockAddrIn_t  Addr;
     _u16            AddrSize = 0;
     _i16            SockID = 0;
@@ -697,13 +691,14 @@ memcpy(tststr, "this is my kingdom come\n",23);
     if( SockID < 0 )
     {
         ASSERT_ON_ERROR(SockID);
+        CLI_Write("sending random erherstring\n");
     }
-
+    CLI_Write("sending random string\n");
     while (LoopCount < NO_OF_PACKETS)
     {
 
 
-
+CLI_Write("sending random string\n");
 
 
         Status = sl_SendTo(SockID, tststr, PACKET_SIZE, 0,
@@ -830,4 +825,56 @@ static void displayBanner()
     CLI_Write("Wifi DSO debug interface -- server ");
     CLI_Write(IP_HR);
     CLI_Write("\n\r*******************************************************************************\n\r");
+}
+void systemSetup(void){
+
+    SysCtlClockSet(SYSCTL_SYSDIV_10|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
+    // *** Peripheral Enable
+   SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+
+    // *** ADC0
+    ADCHardwareOversampleConfigure(ADC0_BASE,4);
+    ADCReferenceSet(ADC0_BASE,ADC_REF_INT);
+    ADCSequenceConfigure(ADC0_BASE,3,ADC_TRIGGER_TIMER,0);
+    ADCSequenceStepConfigure(ADC0_BASE,3,0,ADC_CTL_TS|ADC_CTL_IE|ADC_CTL_END);
+    ADCSequenceEnable(ADC0_BASE,3);
+
+    // *** Timer0
+  TimerConfigure(TIMER0_BASE,TIMER_CFG_PERIODIC);
+
+   TimerLoadSet(TIMER0_BASE,TIMER_A,SysCtlClockGet()/SAMPLING_FREQ);
+   TimerControlTrigger(TIMER0_BASE,TIMER_A,true);
+
+    // *** GPIO
+    //GPIOPinTypeADC(GPIO_PORTD_BASE,GPIO_PIN_0);
+
+    // *** Interrupts
+    IntEnable(INT_TIMER0A);
+    TimerIntEnable(TIMER0_BASE,TIMER_TIMA_TIMEOUT);
+    IntEnable(INT_ADC0SS3);
+    ADCIntEnable(ADC0_BASE,3);
+    IntMasterEnable();
+   TimerEnable(TIMER0_BASE,TIMER_A);
+}
+void Timer0IntHandler(void){
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+}
+
+ void ADC0SS3IntHandler(void){
+
+   ADCIntClear(ADC0_BASE,3);
+   ADCSequenceDataGet(ADC0_BASE,3,&ADCvalue);
+   adcBuf[sample_number] = (ADCvalue >>8) & 0x000F;
+   sample_number++;
+   adcBuf[sample_number] = ADCvalue & 0x00FF;
+   if (sample_number > PACKET_SIZE)
+   { ADCIntDisable(ADC0_BASE,3);
+   IntMasterDisable();}
+   sample_number++;
+  // if(i<1024c)
+   //{temp_val[i] = ADC0Value; }
+   // Get Data from ADC and store it in ADC0Value
+   return;
 }

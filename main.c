@@ -411,7 +411,6 @@ int main(int argc, char** argv)
    CLI_Write("ADC_initialised\n");
    CLI_Write("starting ADC interrupt trigger");
    while(sample_number<PACKET_SIZE);
-   CLI_Configure();
    CLI_Write("Collected samples\n");
    CLI_Write("pushing _ADC Data \n");
    retVal = ADC_Push(PORT_NUM);
@@ -818,9 +817,12 @@ static void displayBanner()
 }
 void ADCInit(void){
 
-    SysCtlClockSet(SYSCTL_SYSDIV_10|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
+    //SysCtlClockSet(SYSCTL_SYSDIV_10|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
     // *** Peripheral Enable
    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+   while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0))
+   {
+   }
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
 

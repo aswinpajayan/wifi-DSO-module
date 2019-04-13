@@ -335,8 +335,6 @@ int main(int argc, char** argv)
 
     int i;
 
-   ADCInit();
-       while(sample_number<PACKET_SIZE);
 
     retVal = initializeAppVariables();
     ASSERT_ON_ERROR(retVal);
@@ -351,10 +349,7 @@ int main(int argc, char** argv)
     CLI_Configure();
 
     displayBanner();
-    CLI_Write("ADC_initialised\n");
-    CLI_Write("starting ADC interrupt trigger");
     
-initClk();
 
 
     /*
@@ -411,11 +406,13 @@ initClk();
 //        CLI_Write(" Failed to send data to UDP sevrer\n\r");
 //    else
 //        CLI_Write(" successfully sent data to UDP server \n\r");
-    CLI_Write("starting ADC interrupt trigger");
-    //ADCInit();
-    CLI_Write("ADC_initialised\n");
 
-
+   ADCInit();
+   CLI_Write("ADC_initialised\n");
+   CLI_Write("starting ADC interrupt trigger");
+   while(sample_number<PACKET_SIZE);
+   CLI_Configure();
+   CLI_Write("Collected samples\n");
    CLI_Write("pushing _ADC Data \n");
    retVal = ADC_Push(PORT_NUM);
     if(retVal < 0)

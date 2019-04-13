@@ -77,7 +77,7 @@
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
-#define NO_OF_PACKETS   20
+#define NO_OF_PACKETS   2
 
 #define NO_OF_SAMPLES 256
 #define PACKET_SIZE 512
@@ -121,7 +121,7 @@ static _i32 BsdUdpServer(_u16 Port);
 static _i32 BsdUdpClient(_u16 Port);
 static _i32 ADC_Push(_u16 Port);
 static void displayBanner();
-static void systemSetup(void);
+static void ADCInit(void);
 /*
  * STATIC FUNCTION DEFINITIONS -- End
  */
@@ -335,8 +335,8 @@ int main(int argc, char** argv)
 
     int i;
 
-   // systemSetup();
-       //while(sample_number<PACKET_SIZE);
+   ADCInit();
+       while(sample_number<PACKET_SIZE);
 
     retVal = initializeAppVariables();
     ASSERT_ON_ERROR(retVal);
@@ -412,7 +412,7 @@ initClk();
 //    else
 //        CLI_Write(" successfully sent data to UDP server \n\r");
     CLI_Write("starting ADC interrupt trigger");
-    //systemSetup();
+    //ADCInit();
     CLI_Write("ADC_initialised\n");
 
 
@@ -679,7 +679,7 @@ static _i32 ADC_Push(_u16 Port)
     _u32            LoopCount = 0;
 
 _u8 tststr[2048];
-memcpy(tststr, "this is my kingdom come\n",23);
+	//memcpy(tststr, "this is my kingdom come\n",23);
 
     Addr.sin_family = SL_AF_INET;
     Addr.sin_port = sl_Htons((_u16)Port);
@@ -691,18 +691,11 @@ memcpy(tststr, "this is my kingdom come\n",23);
     if( SockID < 0 )
     {
         ASSERT_ON_ERROR(SockID);
-        CLI_Write("sending random erherstring\n");
     }
-    CLI_Write("sending random string\n");
     while (LoopCount < NO_OF_PACKETS)
     {
-
-
-CLI_Write("sending random string\n");
-
-
-        Status = sl_SendTo(SockID, tststr, PACKET_SIZE, 0,
-                               (SlSockAddr_t *)&Addr, AddrSize);
+       /*Status = sl_SendTo(SockID, tststr, PACKET_SIZE, 0,
+                               (SlSockAddr_t *)&Addr, AddrSize);*/
         Status = sl_SendTo(SockID, adcBuf, PACKET_SIZE, 0,
                                        (SlSockAddr_t *)&Addr, AddrSize);
         if( Status <= 0 )
@@ -826,13 +819,13 @@ static void displayBanner()
     CLI_Write(IP_HR);
     CLI_Write("\n\r*******************************************************************************\n\r");
 }
-void systemSetup(void){
+void ADCInit(void){
 
     SysCtlClockSet(SYSCTL_SYSDIV_10|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
     // *** Peripheral Enable
    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
 
     // *** ADC0
     ADCHardwareOversampleConfigure(ADC0_BASE,4);
@@ -842,36 +835,40 @@ void systemSetup(void){
     ADCSequenceEnable(ADC0_BASE,3);
 
     // *** Timer0
-  TimerConfigure(TIMER0_BASE,TIMER_CFG_PERIODIC);
+  TimerConfigure(TIMER1_BASE,TIMER_CFG_PERIODIC);
 
-   TimerLoadSet(TIMER0_BASE,TIMER_A,SysCtlClockGet()/SAMPLING_FREQ);
-   TimerControlTrigger(TIMER0_BASE,TIMER_A,true);
+   TimerLoadSet(TIMER1_BASE,TIMER_A,SysCtlClockGet()/SAMPLING_FREQ);
+   TimerControlTrigger(TIMER1_BASE,TIMER_A,true);
 
     // *** GPIO
-    //GPIOPinTypeADC(GPIO_PORTD_BASE,GPIO_PIN_0);
+    GPIOPinTypeADC(GPIO_PORTD_BASE,GPIO_PIN_0);
 
     // *** Interrupts
-    IntEnable(INT_TIMER0A);
-    TimerIntEnable(TIMER0_BASE,TIMER_TIMA_TIMEOUT);
+    IntEnable(INT_TIMER1A);
+    TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
     IntEnable(INT_ADC0SS3);
     ADCIntEnable(ADC0_BASE,3);
     IntMasterEnable();
-   TimerEnable(TIMER0_BASE,TIMER_A);
+   TimerEnable(TIMER1_BASE,TIMER_A);
 }
-void Timer0IntHandler(void){
-    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+void Timer1IntHandler(void){
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 }
 
  void ADC0SS3IntHandler(void){
 
    ADCIntClear(ADC0_BASE,3);
    ADCSequenceDataGet(ADC0_BASE,3,&ADCvalue);
-   adcBuf[sample_number] = (ADCvalue >>8) & 0x000F;
-   sample_number++;
    adcBuf[sample_number] = ADCvalue & 0x00FF;
+   sample_number++;
+   adcBuf[sample_number] = (ADCvalue >>8) & 0x000F;
    if (sample_number > PACKET_SIZE)
-   { ADCIntDisable(ADC0_BASE,3);
-   IntMasterDisable();}
+   { 	ADCIntDisable(ADC0_BASE,3);
+	   IntDisable(INT_TIMER1A);
+	   IntDisable(INT_ADC0SS3);
+	   TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+	  // IntMasterDisable();
+	   }
    sample_number++;
   // if(i<1024c)
    //{temp_val[i] = ADC0Value; }

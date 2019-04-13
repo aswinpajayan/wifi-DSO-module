@@ -858,9 +858,9 @@ void Timer1IntHandler(void){
 
    ADCIntClear(ADC0_BASE,3);
    ADCSequenceDataGet(ADC0_BASE,3,&ADCvalue);
-   adcBuf[sample_number] = ADCvalue & 0x00FF;
+   adcBuf[sample_number] = (ADCvalue >> 2) & 0x00FF;
    sample_number++;
-   adcBuf[sample_number] = (ADCvalue >>8) & 0x000F;
+   adcBuf[sample_number] = (ADCvalue >> 10) & 0x0003;
    if (sample_number > PACKET_SIZE)
    { 	ADCIntDisable(ADC0_BASE,3);
 	   IntDisable(INT_TIMER1A);

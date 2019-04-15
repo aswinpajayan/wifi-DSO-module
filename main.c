@@ -71,9 +71,10 @@
  * Should be in long format, E.g: 0xc0a8010a == 192.168.1.10
  * 0x0a6B0278 == 10.107.2.120
  * 0x0A6B4FAF == 10.107.79.175  -- this is my laps ip in wel
+ * #define IP_HR "10.107.95.115"
  */
-#define IP_HR "10.1.96.112"
-#define IP_ADDR         0x0A016070      //laptops ip .
+#define IP_HR "10.107.79.145"
+#define IP_ADDR         0x0A6B4F91     //laptops ip .
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
@@ -82,7 +83,7 @@
 #define NO_OF_SAMPLES 256
 #define PACKET_SIZE 512
 
-#define SAMPLING_FREQ 800000 //800 khz
+#define SAMPLING_FREQ 1000000 //1 Mhz
 
 /* Application specific status/error codes */
 typedef enum{
@@ -131,13 +132,9 @@ static void ADCInit(void);
  */
 /*!
     \brief This function handles WLAN events
-
     \param[in]      pWlanEvent is the event passed to the handler
-
     \return         None
-
     \note
-
     \warning
 */
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pWlanEvent)
@@ -199,13 +196,9 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pWlanEvent)
 /*!
     \brief This function handles events for IP address acquisition via DHCP
            indication
-
     \param[in]      pNetAppEvent is the event passed to the handler
-
     \return         None
-
     \note
-
     \warning
 */
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
@@ -244,15 +237,11 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
 
 /*!
     \brief This function handles callback for the HTTP server events
-
     \param[in]      pHttpEvent - Contains the relevant event information
     \param[in]      pHttpResponse - Should be filled by the user with the
                     relevant response information
-
     \return         None
-
     \note
-
     \warning
 */
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
@@ -264,9 +253,7 @@ void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
 
 /*!
     \brief This function handles general error events indication
-
     \param[in]      pDevEvent is the event passed to the handler
-
     \return         None
 */
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
@@ -280,9 +267,7 @@ void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
 
 /*!
     \brief This function handles socket events indication
-
     \param[in]      pSock is the event passed to the handler
-
     \return         None
 */
 void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
@@ -447,9 +432,7 @@ int main(int argc, char** argv)
            - Sets power policy to normal
            - Unregisters mDNS services
            - Remove all filters
-
     \param[in]      none
-
     \return         On success, zero is returned. On error, negative is returned
 */
 static _i32 configureSimpleLinkToDefaultState()
@@ -561,16 +544,11 @@ static _i32 configureSimpleLinkToDefaultState()
 
 /*!
     \brief Connecting to a WLAN Access point
-
     This function connects to the required AP (SSID_NAME).
     The function will return once we are connected and have acquired IP address
-
     \param[in]  None
-
     \return     0 on success, negative error-code on error
-
     \note
-
     \warning    If the WLAN connection fails or we don't acquire an IP address,
                 We will be stuck in this function forever.
 */
@@ -594,17 +572,12 @@ static _i32 establishConnectionWithAP()
 
 /*!
     \brief Opening a UDP client side socket and sending data
-
     This function opens a UDP socket and tries to send data to a UDP server
     IP_ADDR waiting on port PORT_NUM.
     Then the function will send 1000 UDP packets to the server.
-
     \param[in]      port number on which the server will be listening on
-
     \return         0 on success, -1 on Error.
-
     \note
-
     \warning
 */
 static _i32 BsdUdpClient(_u16 Port)
@@ -675,7 +648,7 @@ static _i32 ADC_Push(_u16 Port)
     _u32            LoopCount = 0;
 
 _u8 tststr[2048];
-	//memcpy(tststr, "this is my kingdom come\n",23);
+    //memcpy(tststr, "this is my kingdom come\n",23);
 
     Addr.sin_family = SL_AF_INET;
     Addr.sin_port = sl_Htons((_u16)Port);
@@ -711,16 +684,11 @@ _u8 tststr[2048];
 
 /*!
     \brief Opening a UDP server side socket and receiving data
-
     This function opens a UDP socket in Listen mode and waits for incoming
     UDP packets from the connected client.
-
     \param[in]      port number on which the server will be listening on
-
     \return         0 on success, Negative value on Error.
-
     \note
-
     \warning
 */
 static _i32 BsdUdpServer(_u16 Port)
@@ -787,9 +755,7 @@ static _i32 BsdUdpServer(_u16 Port)
 
 /*!
     \brief This function initializes the application variables
-
     \param[in]  None
-
     \return     0 on success, negative error-code on error
 */
 static _i32 initializeAppVariables()
@@ -802,9 +768,7 @@ static _i32 initializeAppVariables()
 
 /*!
     \brief This function displays the application's banner
-
     \param      None
-
     \return     None
 */
 static void displayBanner()
@@ -830,7 +794,7 @@ void ADCInit(void){
     ADCHardwareOversampleConfigure(ADC0_BASE,4);
     ADCReferenceSet(ADC0_BASE,ADC_REF_INT);
     ADCSequenceConfigure(ADC0_BASE,3,ADC_TRIGGER_TIMER,0);
-    ADCSequenceStepConfigure(ADC0_BASE,3,0,ADC_CTL_TS|ADC_CTL_IE|ADC_CTL_END);
+    ADCSequenceStepConfigure(ADC0_BASE,3,0,ADC_CTL_CH4|ADC_CTL_IE|ADC_CTL_END);
     ADCSequenceEnable(ADC0_BASE,3);
 
     // *** Timer0
@@ -855,19 +819,21 @@ void Timer1IntHandler(void){
 }
 
  void ADC0SS3IntHandler(void){
-
+   static int j=0;
    ADCIntClear(ADC0_BASE,3);
    ADCSequenceDataGet(ADC0_BASE,3,&ADCvalue);
+   ADCoutput[j] = ADCvalue;
+   j++;
    adcBuf[sample_number] = (ADCvalue >> 2) & 0x00FF;
    sample_number++;
    adcBuf[sample_number] = (ADCvalue >> 10) & 0x0003;
    if (sample_number > PACKET_SIZE)
-   { 	ADCIntDisable(ADC0_BASE,3);
-	   IntDisable(INT_TIMER1A);
-	   IntDisable(INT_ADC0SS3);
-	   TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
-	  // IntMasterDisable();
-	   }
+   {    ADCIntDisable(ADC0_BASE,3);
+       IntDisable(INT_TIMER1A);
+       IntDisable(INT_ADC0SS3);
+       TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+      // IntMasterDisable();
+       }
    sample_number++;
   // if(i<1024c)
    //{temp_val[i] = ADC0Value; }

@@ -76,10 +76,12 @@
  * #define IP_ADDR         0x0A6B4FA7     //laptops ip 
  * #define IP_HR "10.107.13.186"
  * #define IP_ADDR         0x0A6B0DBA     //laptops ip .
+ * #define IP_HR "10.42.0.1"
+ * #define IP_ADDR         0x0A2A0001     //laptops ip .
 
  */
-#define IP_HR "10.42.0.1"
-#define IP_ADDR         0x0A2A0001     //laptops ip .
+#define IP_HR "10.1.96.112"
+#define IP_ADDR         0x0A016070     //laptops ip .
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
@@ -114,12 +116,13 @@ union
 _u8  adcBuf[PACKET_SIZE];
 _u32 ADCoutput[NO_OF_SAMPLES];
 _u16 in_buf[NO_OF_SAMPLES];
-_u16 out_buf[NO_OF_SAMPLES];
+_u8 out_buf[PACKET_SIZE];
 _u16 diff_buf[NO_OF_SAMPLES];
 _u16 send_buf[NO_OF_SAMPLES];
 _u16 index_in =0,index_out = 0,sample_number = 0,count_unsend = 0;
-_u16 level_trig = 32; /*---static level trigger ----*/
+_u16 level_trig = 64; /*---static level trigger ----*/
 _u8  trig_detected = 0,trig_index=0;
+char tstr[100];
 /*____________implementing circular buffer using index_in_______________*/
 
 
@@ -402,47 +405,52 @@ int main(int argc, char** argv)
 
 //    CLI_Write(" Started sending data to UDP server \n\r");
 
-//    retVal = BsdUdpClient(PORT_NUM);
+//   retVal = BsdUdpClient(PORT_NUM);
 //    if(retVal < 0)
 //        CLI_Write(" Failed to send data to UDP sevrer\n\r");
 //    else
 //        CLI_Write(" successfully sent data to UDP server \n\r");
 
-CLI_Write("ADC_initialised\n");
    ADCInit();
-   CLI_Write("ADC_initialised\n");
-   CLI_Write("starting ADC interrupt trigger");
-   while(sample_number<PACKET_SIZE);
+   while(count_unsend<NO_OF_SAMPLES);
    CLI_Write("Collected samples\n");
-   CLI_Write("pushing _ADC Data \n");
-   retVal = ADC_Push(PORT_NUM);
-    if(retVal < 0)
-        CLI_Write(" Failed to push ADC data to UDP sevrer\n\r");
-    else
-        CLI_Write("pushing ADC data succesful \n\r");
-//    CLI_Write(" Waiting for data from UDP client \n\r");
-//
-    retVal = BsdUdpServer(PORT_NUM);
-    if(retVal < 0)
-        CLI_Write(" Failed to read data from the UDP client \n\r");
-    else
-        CLI_Write(" Successfully received data from UDP client \n\r");
+   //CLI_Write("pushing _ADC Data \n");
+   //retVal = ADC_Push(PORT_NUM);
+  //  if(retVal < 0)
+  //      CLI_Write(" Failed to push ADC data to UDP sevrer\n\r");
+  //  else
+  //      CLI_Write("pushing ADC data succesful \n\r");
+  //    CLI_Write(" Waiting for data from UDP client \n\r");
+  //
+  //  retVal = BsdUdpServer(PORT_NUM);
+  //  if(retVal < 0)
+  //      CLI_Write(" Failed to read data from the UDP client \n\r");
+  //  else
+  //      CLI_Write(" Successfully received data from UDP client \n\r");
 
-    while(1){	
+    while(1){
+	while(count_unsend < NO_OF_SAMPLES);
 	if(trig_detected){
+	     index_out = 0;
 	     i = trig_index;
 	     while(count_unsend > 0){ 
-	     	out_buf[index_out] = in_buf[i];
-	     	i = (i + 1 ) | 0x0003FF;
+	     	out_buf[index_out] = in_buf[i] & 0x0000FF;
+		index_out ++;
+		out_buf[index_out] = (in_buf[i] >> 8) & 0x0003;
+	     	i = (i + 1 ) & 0x000000001FF;
 	     	count_unsend --;
+		index_out ++;
+		//sprintf(tstr,"trig index %d \t\t count_unsend %d\t\t index_out %d \t\t index_in %d \n\n",trig_index,count_unsend,index_out,i);
+		//CLI_Write(tstr);
 	     }
 
+	     trig_detected = 0;
 	     CLI_Write("Pushing ADC_Data \n");
 	     retVal = ADC_Push(PORT_NUM);
 	     if(retVal < 0)
-		    CLI_Write(" Failed to read data from the UDP client \n\r");
+		    CLI_Write(" Failed to push ADC data to the UDP client \n\r");
 	     else
-		    CLI_Write(" Successfully received data from UDP client \n\r");
+		    CLI_Write(" pushed ADC data to the host system \n\r");
 	}
     }
 
@@ -687,10 +695,10 @@ _u8 tststr[2048];
     //memcpy(tststr, "this is my kingdom come\n",23);
 
     /*______________Disable adc sampling while sending data________________*/
-    			ADCIntDisable(ADC0_BASE,3);
-    			IntDisable(INT_TIMER1A);
-    			IntDisable(INT_ADC0SS3);
-    			TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+    		//	ADCIntDisable(ADC0_BASE,3);
+    		//	IntDisable(INT_TIMER1A);
+    		//	IntDisable(INT_ADC0SS3);
+    		//	TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
     /*______________________________________________________________________*/
     Addr.sin_family = SL_AF_INET;
     Addr.sin_port = sl_Htons((_u16)Port);
@@ -707,7 +715,7 @@ _u8 tststr[2048];
     {
        /*Status = sl_SendTo(SockID, tststr, PACKET_SIZE, 0,
                                (SlSockAddr_t *)&Addr, AddrSize);*/
-        Status = sl_SendTo(SockID, adcBuf, PACKET_SIZE, 0,
+        Status = sl_SendTo(SockID, out_buf, PACKET_SIZE, 0,
                                        (SlSockAddr_t *)&Addr, AddrSize);
         if( Status <= 0 )
         {
@@ -718,6 +726,9 @@ _u8 tststr[2048];
         LoopCount++;
     }
 
+/*__________re enabling interupt for ADC sampling ______________*/
+		ADCInit();
+/*______________________________________________________________*/
 
     Status = sl_Close(SockID);
     ASSERT_ON_ERROR(Status);
@@ -789,14 +800,6 @@ static _i32 BsdUdpServer(_u16 Port)
 
         LoopCount++;
     }
-    /*__________re enabling interupt for ADC sampling ______________*/
-    			TimerEnable(TIMER1_BASE,TIMER_A);
-			IntEnable(INT_TIMER1A);
-			TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
-			IntEnable(INT_ADC0SS3);
-			ADCIntEnable(ADC0_BASE,3);
-			IntMasterEnable();
-    /*______________________________________________________________*/
     Status = sl_Close(SockID);
     ASSERT_ON_ERROR(Status);
 
@@ -876,12 +879,11 @@ void Timer1IntHandler(void){
    static int j=0;
    ADCIntClear(ADC0_BASE,3);
    ADCSequenceDataGet(ADC0_BASE,3,&ADCvalue);
-   ADCoutput[j] = ADCvalue;
-   j++;
-   adcBuf[sample_number] = (ADCvalue >> 2) & 0x00FF;
-   sample_number++;
-   adcBuf[sample_number] = (ADCvalue >> 10) & 0x0003;
-   
+   //CLI_Write("from ADCIN");
+   //adcBuf[sample_number] = (ADCvalue >> 2) & 0x00FF;
+   //sample_number++;
+   //adcBuf[sample_number] = (ADCvalue >> 10) & 0x0003;
+   ADCvalue = ADCvalue >> 2; 
    in_buf[index_in] = ADCvalue & 0x0003FF;
    /*______first order difference to implement edge trigger______*/
    diff_buf[index_in] = in_buf[index_in] - in_buf[index_in -1];
@@ -890,22 +892,25 @@ void Timer1IntHandler(void){
    	
    	trig_detected = 1;
    	trig_index = index_in;
+   }else if(trig_detected){
+   	count_unsend ++;
    }
+
    
-   /*_________implementing a circular buffer of size 1024________*/
-   index_in = (index_in +1 ) & 0x0003FF;
+   /*_________implementing a circular buffer of size 512________*/
+   index_in = (index_in +1 ) & 0x0001FF;
 
    /*__________counter for unsend data__________________________*/
 
    /*_________static supplied level trig________________________*/
 
-   //if (sample_number > PACKET_SIZE)
-   //{    ADCIntDisable(ADC0_BASE,3);
-   //    IntDisable(INT_TIMER1A);
-   //    IntDisable(INT_ADC0SS3);
-   //    TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
-   //   // IntMasterDisable();
-   //    }
+   if (count_unsend >= NO_OF_SAMPLES){
+       ADCIntDisable(ADC0_BASE,3);
+       IntDisable(INT_TIMER1A);
+       IntDisable(INT_ADC0SS3);
+       TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+       IntMasterDisable();
+       }
    sample_number++;
   // if(i<1024c)
    //{temp_val[i] = ADC0Value; }

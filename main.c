@@ -142,6 +142,7 @@ static _i32 BsdUdpClient(_u16 Port);
 static _i32 ADC_Push(_u16 Port);
 static void displayBanner();
 static void ADCInit(void);
+void ADC_ReInit(void);
 /*
  * STATIC FUNCTION DEFINITIONS -- End
  */
@@ -447,11 +448,8 @@ int main(int argc, char** argv)
 	     trig_detected = 0;
 	     CLI_Write("Pushing ADC_Data \n");
 	     retVal = ADC_Push(PORT_NUM);
-	     if(retVal < 0)
-		    CLI_Write(" Failed to push ADC data to the UDP client \n\r");
-	     else
-		    CLI_Write(" pushed ADC data to the host system \n\r");
-	}
+	     ADC_ReInit();
+	     }
     }
 
     /* Stop the CC3100 device */
@@ -683,7 +681,7 @@ static _i32 BsdUdpClient(_u16 Port)
 
 static _i32 ADC_Push(_u16 Port)
 {
-    CLI_Write("entered ADCPUSH\n");
+    //CLI_Write("entered ADCPUSH\n");
     SlSockAddrIn_t  Addr;
     _u16            AddrSize = 0;
     _i16            SockID = 0;
@@ -691,7 +689,7 @@ static _i32 ADC_Push(_u16 Port)
     _u32            LoopCount = 0;
 
 _u8 tststr[2048];
-     CLI_Write("from ADC PUSH\n \r ");
+    // CLI_Write("from ADC PUSH\n \r ");
     //memcpy(tststr, "this is my kingdom come\n",23);
 
     /*______________Disable adc sampling while sending data________________*/
@@ -727,7 +725,7 @@ _u8 tststr[2048];
     }
 
 /*__________re enabling interupt for ADC sampling ______________*/
-		ADCInit();
+		//ADCInit();
 /*______________________________________________________________*/
 
     Status = sl_Close(SockID);
@@ -833,7 +831,7 @@ static void displayBanner()
     CLI_Write("\n\r*******************************************************************************\n\r");
 }
 void ADCInit(void){
-	CLI_Write("from ADC INIT");
+	//CLI_Write("from ADC INIT");
 
     //SysCtlClockSet(SYSCTL_SYSDIV_10|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
     // *** Peripheral Enable
@@ -859,16 +857,32 @@ void ADCInit(void){
 
     // *** GPIO
     GPIOPinTypeADC(GPIO_PORTD_BASE,GPIO_PIN_0);
-CLI_Write("before interrupts");
+    //CLI_Write("before interrupts");
 
     // *** Interrupts
     IntEnable(INT_TIMER1A);
     TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
     IntEnable(INT_ADC0SS3);
     ADCIntEnable(ADC0_BASE,3);
-   TimerEnable(TIMER1_BASE,TIMER_A);
-   CLI_Write("after interrupts");
-   IntMasterEnable();
+    TimerEnable(TIMER1_BASE,TIMER_A);
+    CLI_Write("IDK");
+    IntMasterEnable();
+}
+void ADC_ReInit(void){
+    IntEnable(INT_TIMER1A);
+
+       ADCIntEnable(ADC0_BASE,3);
+       IntEnable(INT_ADC0SS3);
+
+       TimerEnable(TIMER1_BASE,TIMER_A);
+       TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+       CLI_Write("NIK:");
+       IntMasterEnable();
+       //ADCIntDisable(ADC0_BASE,3);
+         //    IntDisable(INT_TIMER1A);
+           //  IntDisable(INT_ADC0SS3);
+             //TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+       return;
 }
 void Timer1IntHandler(void){
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
@@ -908,7 +922,7 @@ void Timer1IntHandler(void){
        ADCIntDisable(ADC0_BASE,3);
        IntDisable(INT_TIMER1A);
        IntDisable(INT_ADC0SS3);
-       TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+       TimerIntDisable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
        IntMasterDisable();
        }
    sample_number++;

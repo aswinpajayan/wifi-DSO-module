@@ -72,18 +72,23 @@
  * 0x0a6B0278 == 10.107.2.120
  * 0x0A6B4FAF == 10.107.79.175  -- this is my laps ip in wel
  * #define IP_HR "10.107.95.115"
+ * #define IP_HR "10.107.79.167"
+ * #define IP_ADDR         0x0A6B4FA7     //laptops ip 
+ * #define IP_HR "10.107.13.186"
+ * #define IP_ADDR         0x0A6B0DBA     //laptops ip .
+
  */
-#define IP_HR "10.107.79.145"
-#define IP_ADDR         0x0A6B4F91     //laptops ip .
+#define IP_HR "10.42.0.1"
+#define IP_ADDR         0x0A2A0001     //laptops ip .
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
 #define NO_OF_PACKETS   2
 
-#define NO_OF_SAMPLES 256
-#define PACKET_SIZE 512
+#define NO_OF_SAMPLES 512
+#define PACKET_SIZE 1024
 
-#define SAMPLING_FREQ 1000000 //1 Mhz
+#define SAMPLING_FREQ 500000 //5 khz
 
 /* Application specific status/error codes */
 typedef enum{
@@ -104,9 +109,20 @@ union
     _u32 demobuf[BUF_SIZE/4];
 } uBuf;
 
+
+/*---------GLOBAL variables for ADC and triggering logic---------------------*/
 _u8  adcBuf[PACKET_SIZE];
 _u32 ADCoutput[NO_OF_SAMPLES];
-_u16 sample_number =0;
+_u16 in_buf[NO_OF_SAMPLES];
+_u16 out_buf[NO_OF_SAMPLES];
+_u16 diff_buf[NO_OF_SAMPLES];
+_u16 send_buf[NO_OF_SAMPLES];
+_u16 index_in =0,index_out = 0,sample_number = 0,count_unsend = 0;
+_u16 level_trig = 32; /*---static level trigger ----*/
+_u8  trig_detected = 0,trig_index=0;
+/*____________implementing circular buffer using index_in_______________*/
+
+
 uint32_t ADCvalue;
 /*
  * GLOBAL VARIABLES -- End
@@ -392,6 +408,7 @@ int main(int argc, char** argv)
 //    else
 //        CLI_Write(" successfully sent data to UDP server \n\r");
 
+CLI_Write("ADC_initialised\n");
    ADCInit();
    CLI_Write("ADC_initialised\n");
    CLI_Write("starting ADC interrupt trigger");
@@ -410,6 +427,24 @@ int main(int argc, char** argv)
         CLI_Write(" Failed to read data from the UDP client \n\r");
     else
         CLI_Write(" Successfully received data from UDP client \n\r");
+
+    while(1){	
+	if(trig_detected){
+	     i = trig_index;
+	     while(count_unsend > 0){ 
+	     	out_buf[index_out] = in_buf[i];
+	     	i = (i + 1 ) | 0x0003FF;
+	     	count_unsend --;
+	     }
+
+	     CLI_Write("Pushing ADC_Data \n");
+	     retVal = ADC_Push(PORT_NUM);
+	     if(retVal < 0)
+		    CLI_Write(" Failed to read data from the UDP client \n\r");
+	     else
+		    CLI_Write(" Successfully received data from UDP client \n\r");
+	}
+    }
 
     /* Stop the CC3100 device */
     retVal = sl_Stop(SL_STOP_TIMEOUT);
@@ -648,8 +683,15 @@ static _i32 ADC_Push(_u16 Port)
     _u32            LoopCount = 0;
 
 _u8 tststr[2048];
+     CLI_Write("from ADC PUSH\n \r ");
     //memcpy(tststr, "this is my kingdom come\n",23);
 
+    /*______________Disable adc sampling while sending data________________*/
+    			ADCIntDisable(ADC0_BASE,3);
+    			IntDisable(INT_TIMER1A);
+    			IntDisable(INT_ADC0SS3);
+    			TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+    /*______________________________________________________________________*/
     Addr.sin_family = SL_AF_INET;
     Addr.sin_port = sl_Htons((_u16)Port);
     Addr.sin_addr.s_addr = sl_Htonl((_u32)IP_ADDR);
@@ -675,6 +717,7 @@ _u8 tststr[2048];
 
         LoopCount++;
     }
+
 
     Status = sl_Close(SockID);
     ASSERT_ON_ERROR(Status);
@@ -746,7 +789,14 @@ static _i32 BsdUdpServer(_u16 Port)
 
         LoopCount++;
     }
-
+    /*__________re enabling interupt for ADC sampling ______________*/
+    			TimerEnable(TIMER1_BASE,TIMER_A);
+			IntEnable(INT_TIMER1A);
+			TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+			IntEnable(INT_ADC0SS3);
+			ADCIntEnable(ADC0_BASE,3);
+			IntMasterEnable();
+    /*______________________________________________________________*/
     Status = sl_Close(SockID);
     ASSERT_ON_ERROR(Status);
 
@@ -780,6 +830,7 @@ static void displayBanner()
     CLI_Write("\n\r*******************************************************************************\n\r");
 }
 void ADCInit(void){
+	CLI_Write("from ADC INIT");
 
     //SysCtlClockSet(SYSCTL_SYSDIV_10|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
     // *** Peripheral Enable
@@ -805,17 +856,20 @@ void ADCInit(void){
 
     // *** GPIO
     GPIOPinTypeADC(GPIO_PORTD_BASE,GPIO_PIN_0);
+CLI_Write("before interrupts");
 
     // *** Interrupts
     IntEnable(INT_TIMER1A);
     TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
     IntEnable(INT_ADC0SS3);
     ADCIntEnable(ADC0_BASE,3);
-    IntMasterEnable();
    TimerEnable(TIMER1_BASE,TIMER_A);
+   CLI_Write("after interrupts");
+   IntMasterEnable();
 }
 void Timer1IntHandler(void){
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+    //CLI_Write("from TIMer");
 }
 
  void ADC0SS3IntHandler(void){
@@ -827,16 +881,35 @@ void Timer1IntHandler(void){
    adcBuf[sample_number] = (ADCvalue >> 2) & 0x00FF;
    sample_number++;
    adcBuf[sample_number] = (ADCvalue >> 10) & 0x0003;
-   if (sample_number > PACKET_SIZE)
-   {    ADCIntDisable(ADC0_BASE,3);
-       IntDisable(INT_TIMER1A);
-       IntDisable(INT_ADC0SS3);
-       TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
-      // IntMasterDisable();
-       }
+   
+   in_buf[index_in] = ADCvalue & 0x0003FF;
+   /*______first order difference to implement edge trigger______*/
+   diff_buf[index_in] = in_buf[index_in] - in_buf[index_in -1];
+   
+   if((in_buf[index_in] >= level_trig - 5) && ( in_buf[index_in] <= level_trig + 5) && (trig_detected == 0) ){
+   	
+   	trig_detected = 1;
+   	trig_index = index_in;
+   }
+   
+   /*_________implementing a circular buffer of size 1024________*/
+   index_in = (index_in +1 ) & 0x0003FF;
+
+   /*__________counter for unsend data__________________________*/
+
+   /*_________static supplied level trig________________________*/
+
+   //if (sample_number > PACKET_SIZE)
+   //{    ADCIntDisable(ADC0_BASE,3);
+   //    IntDisable(INT_TIMER1A);
+   //    IntDisable(INT_ADC0SS3);
+   //    TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+   //   // IntMasterDisable();
+   //    }
    sample_number++;
   // if(i<1024c)
    //{temp_val[i] = ADC0Value; }
    // Get Data from ADC and store it in ADC0Value
+   //CLI_Write("from ADC");
    return;
 }

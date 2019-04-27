@@ -79,9 +79,11 @@
  * #define IP_HR "10.42.0.1"
  * #define IP_ADDR         0x0A2A0001     //laptops ip .
 
+ * #define IP_HR "10.1.96.112"
+ * #define IP_ADDR         0x0A016070     //laptops ip .
  */
-#define IP_HR "10.1.96.112"
-#define IP_ADDR         0x0A016070     //laptops ip .
+#define IP_HR "10.107.79.108"
+#define IP_ADDR         0x0A6B4F6C     //laptops ip .
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400
@@ -120,7 +122,7 @@ _u8 out_buf[PACKET_SIZE];
 _u16 diff_buf[NO_OF_SAMPLES];
 _u16 send_buf[NO_OF_SAMPLES];
 _u16 index_in =0,index_out = 0,sample_number = 0,count_unsend = 0;
-_u16 level_trig = 64; /*---static level trigger ----*/
+_u16 level_trig = 478; /*---static level trigger ----*/
 _u8  trig_detected = 0,trig_index=0;
 char tstr[100];
 /*____________implementing circular buffer using index_in_______________*/
@@ -448,7 +450,11 @@ int main(int argc, char** argv)
 	     trig_detected = 0;
 	     CLI_Write("Pushing ADC_Data \n");
 	     retVal = ADC_Push(PORT_NUM);
+	     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)){
+	     	}
 	     ADC_ReInit();
+	     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)){
+		}
 	     }
     }
 
@@ -870,19 +876,16 @@ void ADCInit(void){
 }
 void ADC_ReInit(void){
     IntEnable(INT_TIMER1A);
-
-       ADCIntEnable(ADC0_BASE,3);
-       IntEnable(INT_ADC0SS3);
-
-       TimerEnable(TIMER1_BASE,TIMER_A);
-       TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
-       CLI_Write("NIK:");
-       IntMasterEnable();
-       //ADCIntDisable(ADC0_BASE,3);
-         //    IntDisable(INT_TIMER1A);
-           //  IntDisable(INT_ADC0SS3);
-             //TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
-       return;
+    ADCIntEnable(ADC0_BASE,3);
+    IntEnable(INT_ADC0SS3);
+    TimerEnable(TIMER1_BASE,TIMER_A);
+    TimerIntEnable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
+    CLI_Write("NIK:");
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0))
+    {
+    }
+    IntMasterEnable();
+    return;
 }
 void Timer1IntHandler(void){
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);

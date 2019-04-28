@@ -436,7 +436,7 @@ int main(int argc, char** argv)
 	if(trig_detected){
 	     index_out = 0;
 	     i = trig_index;
-	     while(count_unsend > 0){ 
+	     while(count_unsend >0){ 
 	     	out_buf[index_out] = in_buf[i] & 0x0000FF;
 		index_out ++;
 		out_buf[index_out] = (in_buf[i] >> 8) & 0x0003;
@@ -901,14 +901,16 @@ void Timer1IntHandler(void){
    //sample_number++;
    //adcBuf[sample_number] = (ADCvalue >> 10) & 0x0003;
    ADCvalue = ADCvalue >> 2; 
-   in_buf[index_in] = ADCvalue & 0x0003FF;
+   in_buf[index_in] = ADCvalue & 0x000000000000003FF;
    /*______first order difference to implement edge trigger______*/
    diff_buf[index_in] = in_buf[index_in] - in_buf[index_in -1];
    
-   if((in_buf[index_in] >= level_trig - 5) && ( in_buf[index_in] <= level_trig + 5) && (trig_detected == 0) ){
-   	
+   //if((in_buf[index_in] == level_trig) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
+   if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
+	
    	trig_detected = 1;
    	trig_index = index_in;
+	count_unsend ++;
    }else if(trig_detected){
    	count_unsend ++;
    }
@@ -928,7 +930,6 @@ void Timer1IntHandler(void){
        TimerIntDisable(TIMER1_BASE,TIMER_TIMA_TIMEOUT);
        IntMasterDisable();
        }
-   sample_number++;
   // if(i<1024c)
    //{temp_val[i] = ADC0Value; }
    // Get Data from ADC and store it in ADC0Value

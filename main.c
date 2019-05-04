@@ -119,11 +119,12 @@ _u8  adcBuf[PACKET_SIZE];
 _u32 ADCoutput[NO_OF_SAMPLES];
 _u16 in_buf[NO_OF_SAMPLES];
 _u8 out_buf[PACKET_SIZE];
-_u16 diff_buf[NO_OF_SAMPLES];
+int diff_buf[NO_OF_SAMPLES];
 _u16 send_buf[NO_OF_SAMPLES];
-_u16 index_in =0,index_out = 0,sample_number = 0,count_unsend = 0;
-_u16 level_trig = 478; /*---static level trigger ----*/
-_u8  trig_detected = 0,trig_index=0;
+_u16 index_in =0,index_out = 0,sample_number = 0;
+int count_unsend = 0;
+_u16 level_trig = 530; /*---static level trigger ----*/
+_u16  trig_detected = 0,trig_index=0;
 char tstr[100];
 /*____________implementing circular buffer using index_in_______________*/
 
@@ -905,8 +906,8 @@ void Timer1IntHandler(void){
    /*______first order difference to implement edge trigger______*/
    diff_buf[index_in] = in_buf[index_in] - in_buf[index_in -1];
    
-   //if((in_buf[index_in] == level_trig) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
-   if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
+   if((in_buf[index_in] >= (level_trig - 1)) && (in_buf[index_in] <= level_trig + 1) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
+   //if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
 	
    	trig_detected = 1;
    	trig_index = index_in;

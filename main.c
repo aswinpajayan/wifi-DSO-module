@@ -91,6 +91,7 @@
 
 #define NO_OF_SAMPLES 512
 #define PACKET_SIZE 1024
+#define CTRL_WIDTH 12
 
 #define SAMPLING_FREQ 500000 //5 khz
 
@@ -119,10 +120,11 @@ _u8  adcBuf[PACKET_SIZE];
 _u32 ADCoutput[NO_OF_SAMPLES];
 _u16 in_buf[NO_OF_SAMPLES];
 _u8 out_buf[PACKET_SIZE];
+_u8 recv_buf[CTRL_WIDTH];
 int diff_buf[NO_OF_SAMPLES];
 _u16 send_buf[NO_OF_SAMPLES];
 _u16 index_in =0,index_out = 0,sample_number = 0;
-int count_unsend = 0;
+int count_unsend = 0,count_untriggered = 0;
 _u16 level_trig = 530; /*---static level trigger ----*/
 _u16  trig_detected = 0,trig_index=0;
 char tstr[100];
@@ -692,7 +694,7 @@ static _i32 ADC_Push(_u16 Port)
     SlSockAddrIn_t  Addr;
     _u16            AddrSize = 0;
     _i16            SockID = 0;
-    _i16            Status = 0;
+    _i16            Status = 0,recvSize;
     _u32            LoopCount = 0;
 
 _u8 tststr[2048];
@@ -722,15 +724,19 @@ _u8 tststr[2048];
                                (SlSockAddr_t *)&Addr, AddrSize);*/
         Status = sl_SendTo(SockID, out_buf, PACKET_SIZE, 0,
                                        (SlSockAddr_t *)&Addr, AddrSize);
-        if( Status <= 0 )
-        {
-            Status = sl_Close(SockID);
-            ASSERT_ON_ERROR(BSD_UDP_CLIENT_FAILED);
-        }
-
         LoopCount++;
     }
-
+	
+	    Status = sl_RecvFrom(SockID, &uBuf.BsdBuf[BUF_SIZE - CTRL_WIDTH] , CTRL_WIDTH, 0,
+				(SlSockAddr_t *)&Addr, (SlSocklen_t*)&AddrSize );
+	    if(Status < 0)
+	    {
+		sl_Close(SockID);
+		ASSERT_ON_ERROR(Status);
+	    }
+    
+	    recvSize -= Status;
+    
 /*__________re enabling interupt for ADC sampling ______________*/
 		//ADCInit();
 /*______________________________________________________________*/
@@ -785,28 +791,9 @@ static _i32 BsdUdpServer(_u16 Port)
         ASSERT_ON_ERROR(Status);
     }
 
-    while (LoopCount < NO_OF_PACKETS)
-    {
-        recvSize = BUF_SIZE;
-
-        do
-        {
-            Status = sl_RecvFrom(SockID, &uBuf.BsdBuf[BUF_SIZE - recvSize], recvSize, 0,
+    Status = sl_RecvFrom(SockID, &uBuf.BsdBuf[BUF_SIZE - recvSize], recvSize, 0,
                                 (SlSockAddr_t *)&Addr, (SlSocklen_t*)&AddrSize );
-            if(Status < 0)
-            {
-                sl_Close(SockID);
-                ASSERT_ON_ERROR(Status);
-            }
-
-            recvSize -= Status;
-
-        }while(recvSize > 0);
-
-        LoopCount++;
-    }
     Status = sl_Close(SockID);
-    ASSERT_ON_ERROR(Status);
 
     return SUCCESS;
 }
@@ -910,10 +897,18 @@ void Timer1IntHandler(void){
    //if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
 	
    	trig_detected = 1;
+	count_untriggered = 0;
    	trig_index = index_in;
 	count_unsend ++;
    }else if(trig_detected){
    	count_unsend ++;
+   }
+   else{
+   	count_untriggered ++;
+	if (count_untriggered > 4096){
+		count_unsend = NO_OF_SAMPLES + 1;
+		count_untriggered = 0;
+	}
    }
 
    

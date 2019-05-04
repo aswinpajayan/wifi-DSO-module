@@ -82,8 +82,8 @@
  * #define IP_HR "10.1.96.112"
  * #define IP_ADDR         0x0A016070     //laptops ip .
  */
-#define IP_HR "10.107.79.108"
-#define IP_ADDR         0x0A6B4F6C     //laptops ip .
+#define IP_HR "192.168.43.183"		//using mobile hotspot
+#define IP_ADDR         0xC0A82BB7     //laptops ip .
 #define PORT_NUM        50001            /* Port number to be used */
 
 #define BUF_SIZE        1400

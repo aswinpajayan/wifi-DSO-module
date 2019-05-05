@@ -93,7 +93,7 @@
 #define PACKET_SIZE 1024
 #define CTRL_WIDTH 12
 
-#define SAMPLING_FREQ 500000 //50 khz
+#define SAMPLING_FREQ 512000 //50 khz
 
 /* Application specific status/error codes */
 typedef enum{

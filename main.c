@@ -132,6 +132,7 @@ char tstr[100];
 
 
 uint32_t ADCvalue;
+uint32_t size_ram = 0  ;
 /*
  * GLOBAL VARIABLES -- End
  */
@@ -346,6 +347,12 @@ int main(int argc, char** argv)
     int i;
 
 
+    // configuration of A port to get control of gain
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7);
+    GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x8f);
+    //end of assignment
+
     retVal = initializeAppVariables();
     ASSERT_ON_ERROR(retVal);
 
@@ -435,6 +442,7 @@ int main(int argc, char** argv)
   //      CLI_Write(" Successfully received data from UDP client \n\r");
 
     while(1){
+    //SysCtlSRAMSizeGet(void);
 	while(count_unsend < NO_OF_SAMPLES);
 	if(trig_detected){
 	     index_out = 0;
@@ -455,6 +463,8 @@ int main(int argc, char** argv)
 	     retVal = ADC_Push(PORT_NUM);
 	     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)){
 	     	}
+	    // size_ram ++;
+	     //if (size_ram > 100){void SysCtlReset(void);size_ram = 0;}
 	     ADC_ReInit();
 	     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)){
 		}
@@ -840,7 +850,7 @@ void ADCInit(void){
     ADCHardwareOversampleConfigure(ADC0_BASE,4);
     ADCReferenceSet(ADC0_BASE,ADC_REF_INT);
     ADCSequenceConfigure(ADC0_BASE,3,ADC_TRIGGER_TIMER,0);
-    ADCSequenceStepConfigure(ADC0_BASE,3,0,ADC_CTL_CH4|ADC_CTL_IE|ADC_CTL_END);
+    ADCSequenceStepConfigure(ADC0_BASE,3,0,ADC_CTL_CH4|ADC_CTL_IE|ADC_CTL_END); // changed to take value from temp sensor
     ADCSequenceEnable(ADC0_BASE,3);
 
     // *** Timer0
@@ -893,7 +903,7 @@ void Timer1IntHandler(void){
    /*______first order difference to implement edge trigger______*/
    diff_buf[index_in] = in_buf[index_in] - in_buf[index_in -1];
    
-   if((in_buf[index_in] >= (level_trig - 1)) && (in_buf[index_in] <= level_trig + 1) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
+   if((in_buf[index_in] >= (level_trig - 20)) && (in_buf[index_in] <= level_trig + 20) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
    //if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
 	
    	trig_detected = 1;
@@ -905,8 +915,9 @@ void Timer1IntHandler(void){
    }
    else{
    	count_untriggered ++;
-	if (count_untriggered > 4096){
+	if (count_untriggered > 1024){
 		count_unsend = NO_OF_SAMPLES + 1;
+		trig_detected = 1; // modification to check the arbritary sending of data when trigger not detected
 		count_untriggered = 0;
 	}
    }

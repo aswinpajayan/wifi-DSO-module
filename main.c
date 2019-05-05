@@ -927,10 +927,10 @@ void Timer1IntHandler(void){
    ADCvalue = ADCvalue >> 2;  
    in_buf[index_in] = ADCvalue & 0x000000000000003FF;
    /*______first order difference to implement edge trigger______*/
-   diff_buf[index_in] = in_buf[index_in] - in_buf[index_in -1];
+   diff_buf[index_in] = in_buf[index_in] - in_buf[((index_in -4) & 0x000000000FFF)];
    
-   if((in_buf[index_in] >= (level_trig - 1)) && (in_buf[index_in] <= level_trig + 1) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
-  // if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
+  // if((in_buf[index_in] >= (level_trig - 1)) && (in_buf[index_in] <= level_trig + 1) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
+  if((trig_detected == 0)&& (in_buf[index_in - 1] < level_trig) && (in_buf[index_in] > level_trig) && (diff_buf[index_in] > 0) ){
 	
    	trig_detected = 1;
 	count_untriggered = 0;

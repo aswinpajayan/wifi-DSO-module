@@ -89,11 +89,11 @@
 #define BUF_SIZE        1400
 #define NO_OF_PACKETS   2
 
-#define NO_OF_SAMPLES 512
+#define NO_OF_SAMPLES 4096
 #define PACKET_SIZE 1024
 #define CTRL_WIDTH 12
 
-#define SAMPLING_FREQ 500000 //5 khz
+#define SAMPLING_FREQ 500000 //50 khz
 
 /* Application specific status/error codes */
 typedef enum{
@@ -128,6 +128,8 @@ int count_unsend = 0,count_untriggered = 0;
 _u16 level_trig = 530; /*---static level trigger ----*/
 _u16  trig_detected = 0,trig_index=0;
 char tstr[100];
+
+uint32_t SAMPLING_N = 1;
 /*____________implementing circular buffer using index_in_______________*/
 
 
@@ -350,7 +352,7 @@ int main(int argc, char** argv)
     // configuration of A port to get control of gain
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
     GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7);
-    GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x8f);
+    GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x0f);
     //end of assignment
 
     retVal = initializeAppVariables();
@@ -447,12 +449,13 @@ int main(int argc, char** argv)
 	if(trig_detected){
 	     index_out = 0;
 	     i = trig_index;
-	     while(count_unsend >0){ 
+	     count_unsend = 512 * SAMPLING_N; /*_____for throwing away N samples___*/
+	     while(count_unsend > 0){ 
 	     	out_buf[index_out] = in_buf[i] & 0x0000FF;
 		index_out ++;
 		out_buf[index_out] = (in_buf[i] >> 8) & 0x0003;
-	     	i = (i + 1 ) & 0x000000001FF;
-	     	count_unsend --;
+	     	i = (i + SAMPLING_N ) & 0x00000000FFF;
+	     	count_unsend = count_unsend - SAMPLING_N;
 		index_out ++;
 		//sprintf(tstr,"trig index %d \t\t count_unsend %d\t\t index_out %d \t\t index_in %d \n\n",trig_index,count_unsend,index_out,i);
 		//CLI_Write(tstr);
@@ -737,8 +740,10 @@ _u8 tststr[2048];
         LoopCount++;
     }
 	
-	    Status = sl_RecvFrom(SockID, &uBuf.BsdBuf[BUF_SIZE - CTRL_WIDTH] , CTRL_WIDTH, 0,
-				(SlSockAddr_t *)&Addr, (SlSocklen_t*)&AddrSize );
+	   // Status = sl_RecvFrom(SockID, &uBuf.BsdBuf[BUF_SIZE - CTRL_WIDTH] , CTRL_WIDTH, 0,
+		//		(SlSockAddr_t *)&Addr, (SlSocklen_t*)&AddrSize );
+	    Status = sl_RecvFrom(SockID, recv_buf, CTRL_WIDTH, 0,
+			    (SlSockAddr_t *)&Addr, (SlSocklen_t*)&AddrSize );
 	    if(Status < 0)
 	    {
 		sl_Close(SockID);
@@ -746,7 +751,25 @@ _u8 tststr[2048];
 	    }
     
 	    recvSize -= Status;
-    
+   level_trig = recv_buf[2] << 3;
+
+   // voltage/div changes
+   if (recv_buf[0]== 1) {GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x0f);}
+   else if (recv_buf[0] == 2) {GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x8f);}
+   else if (recv_buf[0] == 3) {GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x4f);}
+   else if (recv_buf [0]== 4) {GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x2f);}
+   else if (recv_buf[0] == 5) {GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x1f);}
+   else {GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7,0x0f);}
+   //ends here volt/div
+
+   // time/div changes
+   if (recv_buf[1]== 1)       {SAMPLING_N = 8;}
+   else  if (recv_buf[1]== 2) {SAMPLING_N = 6;}
+   else  if (recv_buf[1]== 3) {SAMPLING_N = 4;}
+   else  if (recv_buf[1]== 4) {SAMPLING_N = 2;}
+   else  if (recv_buf[1]== 5) {SAMPLING_N = 1;}
+   else			      {SAMPLING_N = 1;}
+   // ends here time/div
 /*__________re enabling interupt for ADC sampling ______________*/
 		//ADCInit();
 /*______________________________________________________________*/
@@ -873,6 +896,9 @@ void ADCInit(void){
     IntMasterEnable();
 }
 void ADC_ReInit(void){
+
+
+
     IntEnable(INT_TIMER1A);
     ADCIntEnable(ADC0_BASE,3);
     IntEnable(INT_ADC0SS3);
@@ -898,13 +924,13 @@ void Timer1IntHandler(void){
    //adcBuf[sample_number] = (ADCvalue >> 2) & 0x00FF;
    //sample_number++;
    //adcBuf[sample_number] = (ADCvalue >> 10) & 0x0003;
-   ADCvalue = ADCvalue >> 2; 
+   ADCvalue = ADCvalue >> 2;  
    in_buf[index_in] = ADCvalue & 0x000000000000003FF;
    /*______first order difference to implement edge trigger______*/
    diff_buf[index_in] = in_buf[index_in] - in_buf[index_in -1];
    
-   if((in_buf[index_in] >= (level_trig - 20)) && (in_buf[index_in] <= level_trig + 20) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
-   //if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
+   if((in_buf[index_in] >= (level_trig - 1)) && (in_buf[index_in] <= level_trig + 1) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
+  // if((trig_detected == 0) && (diff_buf[index_in] == 0) && (in_buf[index_in] > level_trig) ){
 	
    	trig_detected = 1;
 	count_untriggered = 0;
@@ -915,7 +941,7 @@ void Timer1IntHandler(void){
    }
    else{
    	count_untriggered ++;
-	if (count_untriggered > 1024){
+	if (count_untriggered > 4096){
 		count_unsend = NO_OF_SAMPLES + 1;
 		trig_detected = 1; // modification to check the arbritary sending of data when trigger not detected
 		count_untriggered = 0;
@@ -924,7 +950,7 @@ void Timer1IntHandler(void){
 
    
    /*_________implementing a circular buffer of size 512________*/
-   index_in = (index_in +1 ) & 0x0001FF;
+    index_in = (index_in +1 ) & 0x000FFF;
 
    /*__________counter for unsend data__________________________*/
 

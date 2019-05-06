@@ -930,7 +930,7 @@ void Timer1IntHandler(void){
    diff_buf[index_in] = in_buf[index_in] - in_buf[((index_in -4) & 0x000000000FFF)];
    
   // if((in_buf[index_in] >= (level_trig - 1)) && (in_buf[index_in] <= level_trig + 1) && (trig_detected == 0) && (diff_buf[index_in] > 0) ){
-  if((trig_detected == 0)&& (in_buf[index_in - 1] < level_trig) && (in_buf[index_in] > level_trig) && (diff_buf[index_in] > 0) ){
+  if((trig_detected == 0)&& (in_buf[(index_in - 1) & 0x00000000FFF] < level_trig) && (in_buf[index_in] > level_trig) && (diff_buf[index_in] > 0) ){
 	
    	trig_detected = 1;
 	count_untriggered = 0;
@@ -941,7 +941,7 @@ void Timer1IntHandler(void){
    }
    else{
    	count_untriggered ++;
-	if (count_untriggered > 4096){
+	if (count_untriggered > 16384){
 		count_unsend = NO_OF_SAMPLES + 1;
 		trig_detected = 1; // modification to check the arbritary sending of data when trigger not detected
 		count_untriggered = 0;

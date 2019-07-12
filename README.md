@@ -6,9 +6,7 @@ small gtk + app to plot data recieved over wifi
   and send the data over a wifi link using CC3100 addon board . This particular repository contains the code for the sender . All the details of the project (both reciever and sender side ) is given in [Project Report](report/ee712_project_report.pdf)
   
   the code is written entirely in C. 
-      ![Please read report/ee712_project_report](report/libraries_used.png)
-     
- 
+   
       
 The program is multithreaded to address any dead lock issue. Cairo library is used for drawing ui 
 ![Please read report/ee712_project_report](report/ui_snap.png)
